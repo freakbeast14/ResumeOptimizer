@@ -221,3 +221,9 @@ export async function setDefaultOpenAiConfig(id: number) {
     await fetch(`/api/openai-configs/${id}/default`, { method: "PATCH" })
   );
 }
+
+export async function deleteRun(id: number) {
+  return handleJson<{ data: { id: number } }>(
+    await fetch(`/api/runs/${id}`, { method: "DELETE" })
+  );
+}

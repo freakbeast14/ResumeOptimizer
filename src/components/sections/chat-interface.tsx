@@ -54,8 +54,8 @@ function ChatBubble({
           isSystem
             ? "bg-[#1a1f3b] text-slate-300"
             : isUser
-            ? "bg-indigo-500 text-white"
-            : "bg-[#151a36] text-slate-100"
+            ? "bg-indigo-500 text-white rounded-br-lg"
+            : "bg-[#151a36] text-slate-100 rounded-bl-lg"
         }`}
       >
         {message.isPending ? (
@@ -108,22 +108,101 @@ function ChatBubble({
 
 export function ChatInterface() {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const { push } = useToast();
+  const storageKey = "resume-optimizer-chat";
   const [jobDescription, setJobDescription] = useState("");
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
   const [prompts, setPrompts] = useState<PromptRecord[]>([]);
   const [templateId, setTemplateId] = useState<number | undefined>(undefined);
   const [promptId, setPromptId] = useState<number | undefined>(undefined);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content:
-        "Paste a job description to generate a tailored LaTeX resume. I will return an Overleaf link when it is ready.",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isBusy, setIsBusy] = useState(false);
-  const [composerHeight, setComposerHeight] = useState(220);
+  const [composerHeight, setComposerHeight] = useState(400);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+
+  const defaultWelcome: ChatMessage = {
+    id: "welcome",
+    role: "assistant",
+    content:
+      "Paste a job description to generate a tailored LaTeX resume. I will return an Overleaf link when it is ready.",
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.sessionStorage.getItem(storageKey);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as {
+          jobDescription?: string;
+          messages?: ChatMessage[];
+          templateId?: number;
+          promptId?: number;
+          composerHeight?: number;
+        };
+        if (parsed.jobDescription) setJobDescription(parsed.jobDescription);
+        if (parsed.messages?.length) {
+          setMessages(parsed.messages);
+        } else {
+          setMessages([defaultWelcome]);
+        }
+        if (parsed.templateId) setTemplateId(parsed.templateId);
+        if (parsed.promptId) setPromptId(parsed.promptId);
+        if (parsed.composerHeight) setComposerHeight(parsed.composerHeight);
+      } catch {
+        setMessages([defaultWelcome]);
+      }
+    } else {
+      setMessages([defaultWelcome]);
+    }
+    setIsHydrated(true);
+
+    const handleBeforeUnload = () => {
+      window.sessionStorage.removeItem(storageKey);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") return;
+    const payload = {
+      jobDescription,
+      messages,
+      templateId,
+      promptId,
+      composerHeight,
+    };
+    window.sessionStorage.setItem(storageKey, JSON.stringify(payload));
+  }, [isHydrated, jobDescription, messages, templateId, promptId, composerHeight]);
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  };
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const onScroll = () => {
+      const threshold = 120;
+      const distance =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      setIsNearBottom(distance < threshold);
+    };
+
+    container.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => container.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (isNearBottom) {
+      scrollToBottom("smooth");
+    }
+  }, [messages, isNearBottom]);
 
   useEffect(() => {
     const load = async () => {
@@ -140,8 +219,8 @@ export function ChatInterface() {
         const defaultPrompt = promptsResponse.data.find(
           (prompt) => prompt.isDefault
         );
-        setTemplateId(defaultTemplate?.id);
-        setPromptId(defaultPrompt?.id);
+        setTemplateId((prev) => prev ?? defaultTemplate?.id);
+        setPromptId((prev) => prev ?? defaultPrompt?.id);
       } catch (error) {
         push({
           title:
@@ -287,9 +366,12 @@ export function ChatInterface() {
   return (
     <div
       ref={containerRef}
-      className="flex h-[calc(100vh-120px)] flex-col rounded-[32px] border border-[#2a2f55] bg-[#0f1228]/90 p-4 md:p-6 pr-0"
+      className="relative flex h-[calc(100vh-120px)] flex-col rounded-[32px] border border-[#2a2f55] bg-[#0f1228]/90 p-4 md:p-6 !pr-0"
     >
-      <div className="flex-1 space-y-4 overflow-y-auto pb-4 pr-4 md:pr-6">
+      <div
+        ref={scrollRef}
+        className="relative flex-1 space-y-4 overflow-y-auto pb-4 pr-4 md:pr-6"
+      >
         {messages.map((message) => (
           <ChatBubble
             key={message.id}
@@ -303,7 +385,20 @@ export function ChatInterface() {
             onRegenerate={(content) => handleGenerate(content)}
           />
         ))}
+        <div ref={messagesEndRef} />
       </div>
+      {!isNearBottom && (
+        <button
+          type="button"
+          onClick={() => scrollToBottom("smooth")}
+          className="absolute left-1/2 z-10 flex h-10 w-10 -translate-x-1/2 items-center justify-center rounded-full border border-[#2a2f55] bg-[#111633]/75 text-slate-200 shadow-lg transition hover:bg-[#111633]/90 cursor-pointer"
+          style={{ bottom: composerHeight + 70 }}
+          aria-label="Jump to latest"
+          title="Jump to latest"
+        >
+          <ChevronDown className="h-5 w-5" />
+        </button>
+      )}
       <div className="mt-auto flex flex-col gap-3 border-t border-[#2a2f55] pt-4 pr-4 md:pr-6">
         <div
           className="relative -mt-4 mb-2 h-4 cursor-row-resize"

@@ -165,7 +165,7 @@ export function SettingsPrompt() {
             Swap prompt profiles without touching the workflow logic.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="max-h-[520px] space-y-4 overflow-y-auto pr-2">
           {prompts.map((prompt) => (
             <div
               key={prompt.id}

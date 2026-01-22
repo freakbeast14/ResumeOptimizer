@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   createTemplate,
@@ -21,7 +22,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, PenLine, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, Eye, EyeOff, PenLine, Trash2, X } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -37,7 +38,23 @@ export function SettingsTemplates() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string | null>(null);
+  const [previewFilename, setPreviewFilename] = useState<string>("template");
+  const [showEditorPreview, setShowEditorPreview] = useState(false);
+  const [editorPreviewUrl, setEditorPreviewUrl] = useState<string | null>(null);
+  const [editorPreviewError, setEditorPreviewError] = useState<string | null>(
+    null
+  );
+  const [isEditorPreviewing, setIsEditorPreviewing] = useState(false);
   const { push } = useToast();
+  const previewContainer = useMemo(
+    () => (typeof document === "undefined" ? null : document.body),
+    []
+  );
 
   const loadTemplates = async () => {
     try {
@@ -154,6 +171,105 @@ export function SettingsTemplates() {
     }
   };
 
+  const closePreview = () => {
+    if (previewUrl && previewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setPreviewTitle(null);
+    setPreviewFilename("template");
+    setPreviewError(null);
+    setIsPreviewOpen(false);
+  };
+
+  const requestPreview = async (nextContent: string, nextName: string) => {
+    const response = await fetch("/api/latex/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: nextContent,
+        name: nextName,
+      }),
+    });
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+      const message = payload?.error ?? "Failed to render preview.";
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  };
+
+  const handlePreview = async (template: TemplateRecord) => {
+    setPreviewError(null);
+    setPreviewTitle(template.name);
+    setPreviewFilename(
+      template.name
+        .trim()
+        .replace(/\s+/g, "_")
+        .replace(/[^a-zA-Z0-9_-]/g, "")
+        .slice(0, 80) || "template"
+    );
+    setIsPreviewOpen(true);
+    setIsPreviewing(true);
+
+    try {
+      const url = await requestPreview(template.content, template.name);
+      setPreviewUrl(url);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to render preview.";
+      setPreviewError(message);
+      push({ title: message, variant: "error" });
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
+  const toggleEditorPreview = async () => {
+    if (showEditorPreview) {
+      setShowEditorPreview(false);
+      return;
+    }
+
+    setEditorPreviewError(null);
+    setShowEditorPreview(true);
+    setIsEditorPreviewing(true);
+    try {
+      if (!content.trim()) {
+        throw new Error("Paste LaTeX content to preview.");
+      }
+      const nextUrl = await requestPreview(
+        content,
+        name.trim() || "template"
+      );
+      if (editorPreviewUrl && editorPreviewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(editorPreviewUrl);
+      }
+      setEditorPreviewUrl(nextUrl);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to render preview.";
+      setEditorPreviewError(message);
+      push({ title: message, variant: "error" });
+      setShowEditorPreview(false);
+    } finally {
+      setIsEditorPreviewing(false);
+    }
+  };
+
+  const handleDownloadPreview = () => {
+    if (!previewUrl) return;
+    const link = document.createElement("a");
+    link.href = previewUrl;
+    link.download = `${previewFilename}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   return (
     <div className="grid w-full gap-6 lg:grid-cols-[0.85fr_1.15fr]">
       <Card className="border-[#2a2f55] bg-[#111325]/80">
@@ -163,7 +279,7 @@ export function SettingsTemplates() {
             Manage multiple LaTeX templates and set a default for generation.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="max-h-[520px] space-y-4 overflow-y-auto pr-2">
           {templates.map((template) => (
             <div
               key={template.id}
@@ -182,7 +298,7 @@ export function SettingsTemplates() {
               <div className="flex items-center gap-1">
                 {template.isDefault ? (
                   <Badge variant="success" className="mr-2">Default</Badge>
-                ) : (
+                  ) : (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -193,6 +309,15 @@ export function SettingsTemplates() {
                     <CheckCircle2 className="h-4 w-4" />
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handlePreview(template)}
+                  aria-label="Preview template"
+                  title="Preview"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -232,20 +357,44 @@ export function SettingsTemplates() {
                 Save a fresh LaTeX template for the optimizer.
               </CardDescription>
             </div>
-            <label className="flex items-center gap-3 text-sm text-slate-300">
-              <span>Set as default</span>
-              <span className="relative inline-flex items-center">
-                <input
-                  type="checkbox"
-                  className="peer sr-only"
-                  checked={isDefault}
-                  onChange={(event) => setIsDefault(event.target.checked)}
-                  disabled={Boolean(editingId && isDefault)}
-                />
-                <span className="h-6 w-11 rounded-full border border-[#2a2f55] bg-[#0f1228] transition peer-checked:bg-indigo-500/70 peer-disabled:opacity-50" />
-                <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5 peer-disabled:opacity-60" />
-              </span>
-            </label>
+            <div className="flex flex-wrap items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleEditorPreview}
+                aria-label={
+                  showEditorPreview ? "Show LaTeX source" : "Show preview"
+                }
+                disabled={isEditorPreviewing || !content.trim()}
+                className="border border-[#2a2f55] bg-[#0f1228]"
+              >
+                {showEditorPreview ? (
+                  <>
+                    <EyeOff className="h-4 w-4" />
+                    <span className="text-xs">Show code</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4" />
+                    <span className="text-xs">Preview</span>
+                  </>
+                )}
+              </Button>
+              <label className="flex items-center gap-3 text-sm text-slate-300">
+                <span>Set as default</span>
+                <span className="relative inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={isDefault}
+                    onChange={(event) => setIsDefault(event.target.checked)}
+                    disabled={Boolean(editingId && isDefault)}
+                  />
+                  <span className="h-6 w-11 rounded-full border border-[#2a2f55] bg-[#0f1228] transition peer-checked:bg-indigo-500/70 peer-disabled:opacity-50" />
+                  <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition peer-checked:translate-x-5 peer-disabled:opacity-60" />
+                </span>
+              </label>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -254,12 +403,34 @@ export function SettingsTemplates() {
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <Textarea
-            className="min-h-[520px]"
-            placeholder="Paste your LaTeX template here..."
-            value={content}
-            onChange={(event) => setContent(event.target.value)}
-          />
+          {showEditorPreview ? (
+            <div className="min-h-[520px] overflow-hidden rounded-xl border border-[#2a2f55] bg-[#0b1026]">
+              {isEditorPreviewing && (
+                <div className="flex h-full min-h-[520px] items-center justify-center text-sm text-slate-300">
+                  Rendering preview...
+                </div>
+              )}
+              {editorPreviewError && !isEditorPreviewing && (
+                <div className="flex h-full min-h-[520px] items-center justify-center text-sm text-rose-300">
+                  {editorPreviewError}
+                </div>
+              )}
+              {editorPreviewUrl && !isEditorPreviewing && (
+                <iframe
+                  title="Template preview"
+                  src={`${editorPreviewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                  className="h-[520px] w-full border-0"
+                />
+              )}
+            </div>
+          ) : (
+            <Textarea
+              className="min-h-[520px]"
+              placeholder="Paste your LaTeX template here..."
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+            />
+          )}
           {error && (
             <p className="text-sm text-rose-400">{error}</p>
           )}
@@ -304,6 +475,65 @@ export function SettingsTemplates() {
           setConfirmDeleteId(null);
         }}
       />
+      {previewContainer &&
+        isPreviewOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4 py-6">
+            <div className="relative flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[#2a2f55] bg-[#0c1024] shadow-2xl">
+              <div className="flex items-center justify-between border-b border-[#1d2145] px-5 py-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                    Template preview
+                  </p>
+                  <h3 className="text-base font-semibold text-slate-100">
+                    {previewTitle ?? "Preview"}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleDownloadPreview}
+                    aria-label="Download preview"
+                    className="h-9 w-9"
+                    disabled={!previewUrl}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={closePreview}
+                    aria-label="Close preview"
+                    className="h-9 w-9"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-hidden bg-[#0b1026]">
+                {isPreviewing && (
+                  <div className="flex h-full items-center justify-center text-sm text-slate-300">
+                    Rendering preview...
+                  </div>
+                )}
+                {previewError && !isPreviewing && (
+                  <div className="flex h-full items-center justify-center text-sm text-rose-300">
+                    {previewError}
+                  </div>
+                )}
+                {previewUrl && !isPreviewing && (
+                  <iframe
+                    title="Template preview"
+                    src={`${previewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                    className="h-full w-full border-0"
+                  />
+                )}
+              </div>
+            </div>
+          </div>,
+          previewContainer
+        )}
     </div>
   );
 }
