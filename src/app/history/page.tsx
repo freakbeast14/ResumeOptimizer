@@ -13,7 +13,7 @@ type RunRecord = {
   status: string;
   outputUrl?: string | null;
   overleafUrl?: string | null;
-  createdAt: string;
+  createdAt: Date;
 };
 
 export default async function HistoryPage() {
@@ -22,11 +22,11 @@ export default async function HistoryPage() {
     redirect("/auth/sign-in");
   }
 
-  const data = (await db
+  const data = await db
     .select()
     .from(runs)
     .where(eq(runs.userId, session.user.id))
-    .orderBy(desc(runs.createdAt))) as RunRecord[];
+    .orderBy(desc(runs.createdAt));
 
   return (
     <div className="space-y-8">
