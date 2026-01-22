@@ -271,7 +271,7 @@ export function HistoryTable({ rows }: HistoryTableProps) {
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={handleDownloadPreview}
                       aria-label="Download preview"
                       className="h-9 w-9"
@@ -281,7 +281,7 @@ export function HistoryTable({ rows }: HistoryTableProps) {
                     </Button>
                     <Button
                       variant="ghost"
-                      size="icon"
+                      size="sm"
                       onClick={closePdfPreview}
                       aria-label="Close preview"
                       className="h-9 w-9"
@@ -328,7 +328,7 @@ export function HistoryTable({ rows }: HistoryTableProps) {
                   </h2>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     onClick={() => setViewerOpen(false)}
                     aria-label="Close preview"
                     className="h-9 w-9"

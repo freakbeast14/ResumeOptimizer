@@ -492,7 +492,7 @@ export function SettingsTemplates() {
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     onClick={handleDownloadPreview}
                     aria-label="Download preview"
                     className="h-9 w-9"
@@ -502,7 +502,7 @@ export function SettingsTemplates() {
                   </Button>
                   <Button
                     variant="ghost"
-                    size="icon"
+                    size="sm"
                     onClick={closePreview}
                     aria-label="Close preview"
                     className="h-9 w-9"
