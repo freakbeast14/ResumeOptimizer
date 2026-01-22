@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -60,9 +60,26 @@ export async function POST(request: Request) {
     : content;
   await writeSource(sanitizedContent);
 
+  const cacheDir =
+    process.env.TECTONIC_CACHE_DIR ||
+    path.join(process.cwd(), ".cache", "tectonic");
+  try {
+    await mkdir(cacheDir, { recursive: true });
+  } catch {
+    // fallback to tmp if project dir isn't writable
+  }
+  const resolvedCacheDir = (await (async () => {
+    try {
+      await mkdir(cacheDir, { recursive: true });
+      return cacheDir;
+    } catch {
+      return path.join(tmpdir(), "tectonic-cache");
+    }
+  })());
+
   const env = {
     ...process.env,
-    TECTONIC_CACHE_DIR: path.join(tmpdir(), "tectonic-cache"),
+    TECTONIC_CACHE_DIR: resolvedCacheDir,
     ...(process.platform === "win32"
       ? { FONTCONFIG_PATH: "C:\\Windows\\System32" }
       : {}),
@@ -79,16 +96,17 @@ export async function POST(request: Request) {
         dir,
       ],
       {
-        timeout: 30000,
+        timeout: 120000,
         windowsHide: true,
         env,
       }
     );
   } catch (error) {
     const err = error as { message?: string; stdout?: string; stderr?: string };
-    const detail = err.stderr || err.stdout;
-    const message = detail
-      ? `Tectonic failed: ${detail}`
+    const detail = err.stderr || err.stdout || "";
+    const trimmed = detail.length > 2000 ? detail.slice(-2000) : detail;
+    const message = trimmed
+      ? `Tectonic failed: ${trimmed}`
       : err.message || "Tectonic compilation failed.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
