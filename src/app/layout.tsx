@@ -19,6 +19,25 @@ const jetBrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Resume Optimizer",
   description: "Generate tailored resumes with structured LaTeX templates.",
+  metadataBase: process.env.NEXTAUTH_URL
+    ? new URL(process.env.NEXTAUTH_URL)
+    : undefined,
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
+  openGraph: {
+    title: "Resume Optimizer",
+    description: "Generate tailored resumes with structured LaTeX templates.",
+    images: [{ url: "/favicon.ico" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Resume Optimizer",
+    description: "Generate tailored resumes with structured LaTeX templates.",
+    images: ["/favicon.ico"],
+  },
 };
 
 export default function RootLayout({
