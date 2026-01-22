@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { githubConfigs } from "@/db/schema";
@@ -41,6 +41,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const [countRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(githubConfigs)
+    .where(eq(githubConfigs.userId, userId));
+  const shouldBeDefault = Boolean(body?.isDefault) || Number(countRow?.count || 0) === 0;
+
   const [record] = await db
     .insert(githubConfigs)
     .values({
@@ -49,7 +55,7 @@ export async function POST(request: Request) {
       owner,
       repo,
       token: encryptSecret(token),
-      isDefault: Boolean(body?.isDefault),
+      isDefault: shouldBeDefault,
     })
     .returning();
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { openaiConfigs } from "@/db/schema";
@@ -40,6 +40,12 @@ export async function POST(request: Request) {
     );
   }
 
+  const [countRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(openaiConfigs)
+    .where(eq(openaiConfigs.userId, userId));
+  const shouldBeDefault = Boolean(body?.isDefault) || Number(countRow?.count || 0) === 0;
+
   const [record] = await db
     .insert(openaiConfigs)
     .values({
@@ -47,7 +53,7 @@ export async function POST(request: Request) {
       name,
       apiKey: encryptSecret(apiKey),
       model,
-      isDefault: Boolean(body?.isDefault),
+      isDefault: shouldBeDefault,
     })
     .returning();
 
