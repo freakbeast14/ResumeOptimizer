@@ -60,6 +60,14 @@ export async function POST(request: Request) {
     : content;
   await writeSource(sanitizedContent);
 
+  const env = {
+    ...process.env,
+    TECTONIC_CACHE_DIR: path.join(tmpdir(), "tectonic-cache"),
+    ...(process.platform === "win32"
+      ? { FONTCONFIG_PATH: "C:\\Windows\\System32" }
+      : {}),
+  };
+
   try {
     await execFileAsync(
       "tectonic",
@@ -71,18 +79,17 @@ export async function POST(request: Request) {
         dir,
       ],
       {
-        timeout: 20000,
+        timeout: 30000,
         windowsHide: true,
-        env: {
-          ...process.env,
-          TECTONIC_CACHE_DIR: path.join(dir, "cache"),
-          FONTCONFIG_PATH: "C:\\Windows\\System32",
-        },
+        env,
       }
     );
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Tectonic compilation failed.";
+    const err = error as { message?: string; stdout?: string; stderr?: string };
+    const detail = err.stderr || err.stdout;
+    const message = detail
+      ? `Tectonic failed: ${detail}`
+      : err.message || "Tectonic compilation failed.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
