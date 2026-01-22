@@ -1,0 +1,67 @@
+import { NextResponse } from "next/server";
+import { and, desc, eq } from "drizzle-orm";
+
+import { db } from "@/db";
+import { openaiConfigs } from "@/db/schema";
+import { getUserId } from "@/lib/auth";
+import { encryptSecret } from "@/lib/crypto";
+
+export async function GET() {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const data = await db
+    .select()
+    .from(openaiConfigs)
+    .where(eq(openaiConfigs.userId, userId))
+    .orderBy(desc(openaiConfigs.updatedAt));
+
+  const sanitized = data.map(({ apiKey, ...rest }) => rest);
+  return NextResponse.json({ data: sanitized });
+}
+
+export async function POST(request: Request) {
+  const userId = await getUserId();
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const body = await request.json();
+  const name = String(body?.name || "").trim();
+  const apiKey = String(body?.apiKey || "").trim();
+  const model = String(body?.model || "").trim();
+
+  if (!name || !apiKey || !model) {
+    return NextResponse.json(
+      { error: "Name, API key, and model are required." },
+      { status: 400 }
+    );
+  }
+
+  const [record] = await db
+    .insert(openaiConfigs)
+    .values({
+      userId,
+      name,
+      apiKey: encryptSecret(apiKey),
+      model,
+      isDefault: Boolean(body?.isDefault),
+    })
+    .returning();
+
+  if (record?.isDefault) {
+    await db
+      .update(openaiConfigs)
+      .set({ isDefault: false })
+      .where(eq(openaiConfigs.userId, userId));
+    await db
+      .update(openaiConfigs)
+      .set({ isDefault: true })
+      .where(and(eq(openaiConfigs.id, record.id), eq(openaiConfigs.userId, userId)));
+  }
+
+  const { apiKey: _apiKey, ...rest } = record;
+  return NextResponse.json({ data: rest });
+}
