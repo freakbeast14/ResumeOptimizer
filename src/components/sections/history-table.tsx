@@ -21,7 +21,7 @@ type HistoryRow = {
   status: string;
   outputUrl?: string | null;
   overleafUrl?: string | null;
-  createdAt: string;
+  createdAt: Date;
 };
 
 type HistoryTableProps = {

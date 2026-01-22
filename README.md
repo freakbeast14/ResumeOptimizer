@@ -21,7 +21,7 @@ Resume Optimizer is built for rapid, repeatable resume customization:
 
 ## Website
 
-- https://your-render-app-url.onrender.com
+- https://resumeoptimizer-xnee.onrender.com
 
 ## Architecture
 
