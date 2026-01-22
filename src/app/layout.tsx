@@ -23,20 +23,20 @@ export const metadata: Metadata = {
     ? new URL(process.env.NEXTAUTH_URL)
     : undefined,
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
   },
   openGraph: {
     title: "Resume Optimizer",
     description: "Generate tailored resumes with structured LaTeX templates.",
-    images: [{ url: "/icon.svg" }],
+    images: [{ url: "/favicon.ico" }],
   },
   twitter: {
     card: "summary",
     title: "Resume Optimizer",
     description: "Generate tailored resumes with structured LaTeX templates.",
-    images: ["/icon.svg"],
+    images: ["/favicon.ico"],
   },
 };
 
