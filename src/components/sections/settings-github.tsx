@@ -228,7 +228,7 @@ export function SettingsGithub() {
             Manage multiple repository targets and pick a default destination.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="max-h-[520px] space-y-4 overflow-y-auto pr-2">
           {configs.map((config) => (
             <div
               key={config.id}
