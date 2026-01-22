@@ -255,7 +255,7 @@ export function SettingsPrompt() {
             onChange={(event) => setName(event.target.value)}
           />
           <Textarea
-            className="min-h-[540px]"
+            className="min-h-[520px]"
             placeholder="Paste the full prompt configuration..."
             value={content}
             onChange={(event) => setContent(event.target.value)}
