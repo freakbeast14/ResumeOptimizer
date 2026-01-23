@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, PenLine, Trash2, Bug } from "lucide-react";
+import { CheckCircle2, PenLine, Trash2, Eye, EyeOff } from "lucide-react";
 
 import {
   createOpenAiConfig,
@@ -29,6 +29,7 @@ export function SettingsOpenAI() {
   const [name, setName] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
+  const [showKey, setShowKey] = useState(false);
   const [isDefault, setIsDefault] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [originalName, setOriginalName] = useState("");
@@ -103,8 +104,8 @@ export function SettingsOpenAI() {
   const handleEdit = (config: OpenAiConfigRecord) => {
     setEditingId(config.id);
     setName(config.name);
-    setApiKey("");
-    setHasKey(true);
+    setApiKey(config.apiKey || "");
+    setHasKey(Boolean(config.apiKey));
     setModel(config.model);
     setIsDefault(config.isDefault);
     setOriginalName(config.name);
@@ -119,6 +120,7 @@ export function SettingsOpenAI() {
     setHasKey(false);
     setModel("");
     setIsDefault(false);
+    setShowKey(false);
     setOriginalName("");
     setOriginalModel("");
     setOriginalDefault(false);
@@ -167,15 +169,15 @@ export function SettingsOpenAI() {
     }
   };
 
-  const handleTest = async (config?: OpenAiConfigRecord) => {
+  const handleTest = async (_config?: OpenAiConfigRecord) => {
     setError(null);
-    if (!config) {
-      if (!name.trim() || !model.trim() || !apiKey.trim()) {
-        const message = "Fill name, model, and API key before testing.";
-        setError(message);
-        push({ title: message, variant: "error" });
-        return;
-      }
+    const nextApiKey = apiKey.trim();
+    const nextModel = model.trim();
+    if ((!nextApiKey && !hasKey) || !nextModel) {
+      const message = "Fill model and API key before testing.";
+      setError(message);
+      push({ title: message, variant: "error" });
+      return;
     }
 
     setIsBusy(true);
@@ -184,11 +186,9 @@ export function SettingsOpenAI() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          config
-            ? { configId: config.id }
-            : {
-                apiKey: apiKey.trim(),
-              }
+          !nextApiKey && hasKey && editingId
+            ? { configId: editingId, model: nextModel }
+            : { apiKey: nextApiKey, model: nextModel }
         ),
       });
       const json = (await response.json()) as { ok?: boolean; error?: string };
@@ -263,16 +263,6 @@ export function SettingsOpenAI() {
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleTest(config)}
-                  aria-label="Test connection"
-                  title="Test connection"
-                  disabled={isBusy}
-                >
-                  <Bug className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           ))}
@@ -314,17 +304,27 @@ export function SettingsOpenAI() {
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <Input
-            type="password"
-            placeholder="API key"
-            value={apiKey || (hasKey ? "********" : "")}
-            onFocus={() => {
-              if (!apiKey && hasKey) {
-                setApiKey("");
-              }
-            }}
-            onChange={(event) => setApiKey(event.target.value)}
-          />
+          <div className="relative">
+            <Input
+              type={showKey ? "text" : "password"}
+              placeholder="API key"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-200 cursor-pointer"
+              aria-label={showKey ? "Hide key" : "Show key"}
+              title={showKey ? "Hide key" : "Show key"}
+            >
+              {showKey ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
           <Input
             placeholder="Model (e.g., gpt-4o-mini)"
             value={model}
@@ -335,24 +335,12 @@ export function SettingsOpenAI() {
             <Button
               variant="secondary"
               onClick={() => {
-                if (editingId) {
-                  const existing = configs.find((item) => item.id === editingId);
-                  if (existing) {
-                    handleTest(existing);
-                  } else {
-                    push({
-                      title: "Select a saved profile to test.",
-                      variant: "error",
-                    });
-                  }
-                } else {
-                  handleTest();
-                }
+                handleTest();
               }}
               disabled={
                 isBusy ||
-                (!editingId &&
-                  (!name.trim() || !model.trim() || !apiKey.trim()))
+                !model.trim() ||
+                (!apiKey.trim() && !hasKey)
               }
             >
               Test connection

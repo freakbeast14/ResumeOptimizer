@@ -19,6 +19,7 @@ export type GithubConfigRecord = {
   name: string;
   owner: string;
   repo: string;
+  token?: string;
   isDefault: boolean;
   updatedAt: string;
 };
@@ -26,6 +27,7 @@ export type GithubConfigRecord = {
 export type OpenAiConfigRecord = {
   id: number;
   name: string;
+  apiKey?: string;
   model: string;
   isDefault: boolean;
   updatedAt: string;

@@ -4,7 +4,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { githubConfigs } from "@/db/schema";
 import { getUserId } from "@/lib/auth";
-import { encryptSecret } from "@/lib/crypto";
+import { decryptSecret, encryptSecret } from "@/lib/crypto";
 
 export async function GET() {
   const userId = await getUserId();
@@ -18,8 +18,11 @@ export async function GET() {
     .where(eq(githubConfigs.userId, userId))
     .orderBy(desc(githubConfigs.updatedAt));
 
-  const sanitized = data.map(({ token, ...rest }) => rest);
-  return NextResponse.json({ data: sanitized });
+  const hydrated = data.map(({ token, ...rest }) => ({
+    ...rest,
+    token: token ? decryptSecret(token) : "",
+  }));
+  return NextResponse.json({ data: hydrated });
 }
 
 export async function POST(request: Request) {

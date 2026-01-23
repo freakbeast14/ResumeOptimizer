@@ -4,7 +4,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { openaiConfigs } from "@/db/schema";
 import { getUserId } from "@/lib/auth";
-import { encryptSecret } from "@/lib/crypto";
+import { decryptSecret, encryptSecret } from "@/lib/crypto";
 
 export async function GET() {
   const userId = await getUserId();
@@ -18,8 +18,11 @@ export async function GET() {
     .where(eq(openaiConfigs.userId, userId))
     .orderBy(desc(openaiConfigs.updatedAt));
 
-  const sanitized = data.map(({ apiKey, ...rest }) => rest);
-  return NextResponse.json({ data: sanitized });
+  const hydrated = data.map(({ apiKey, ...rest }) => ({
+    ...rest,
+    apiKey: apiKey ? decryptSecret(apiKey) : "",
+  }));
+  return NextResponse.json({ data: hydrated });
 }
 
 export async function POST(request: Request) {
