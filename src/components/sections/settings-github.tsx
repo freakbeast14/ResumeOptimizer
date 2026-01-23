@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, PenLine, Trash2, Bug } from "lucide-react";
+import { CheckCircle2, PenLine, Trash2, Eye, EyeOff } from "lucide-react";
 
 import {
   createGithubConfig,
@@ -30,6 +30,7 @@ export function SettingsGithub() {
   const [owner, setOwner] = useState("");
   const [repo, setRepo] = useState("");
   const [token, setToken] = useState("");
+  const [showToken, setShowToken] = useState(false);
   const [isDefault, setIsDefault] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [originalName, setOriginalName] = useState("");
@@ -110,8 +111,8 @@ export function SettingsGithub() {
     setName(config.name);
     setOwner(config.owner);
     setRepo(config.repo);
-    setToken("");
-    setHasToken(true);
+    setToken(config.token || "");
+    setHasToken(Boolean(config.token));
     setIsDefault(config.isDefault);
     setOriginalName(config.name);
     setOriginalOwner(config.owner);
@@ -126,6 +127,7 @@ export function SettingsGithub() {
     setRepo("");
     setToken("");
     setHasToken(false);
+    setShowToken(false);
     setIsDefault(false);
     setOriginalName("");
     setOriginalOwner("");
@@ -178,29 +180,29 @@ export function SettingsGithub() {
 
   const handleTest = async (config?: GithubConfigRecord) => {
     setError(null);
-    if (!config) {
-      if (!name.trim() || !owner.trim() || !repo.trim() || !token.trim()) {
-        const message = "Fill name, owner, repo, and token before testing.";
-        setError(message);
-        push({ title: message, variant: "error" });
-        return;
-      }
+    const nextOwner = owner.trim();
+    const nextRepo = repo.trim();
+    const nextToken = token.trim();
+    if (!nextOwner || !nextRepo || (!nextToken && !hasToken)) {
+      const message = "Fill owner, repo, and token before testing.";
+      setError(message);
+      push({ title: message, variant: "error" });
+      return;
     }
 
     setIsBusy(true);
     try {
+      const shouldUseStored = !nextToken && hasToken && editingId;
       const response = await fetch("/api/github/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          config
-            ? { configId: config.id }
-            : {
-                owner: owner.trim(),
-                repo: repo.trim(),
-                token: token.trim(),
-              }
-        ),
+        body: JSON.stringify({
+          owner: nextOwner,
+          repo: nextRepo,
+          ...(shouldUseStored
+            ? { configId: editingId }
+            : { token: nextToken }),
+        }),
       });
       const json = (await response.json()) as { ok?: boolean; error?: string };
 
@@ -276,16 +278,6 @@ export function SettingsGithub() {
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleTest(config)}
-                  aria-label="Test connection"
-                  title="Test connection"
-                  disabled={isBusy}
-                >
-                  <Bug className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           ))}
@@ -339,40 +331,39 @@ export function SettingsGithub() {
               onChange={(event) => setRepo(event.target.value)}
             />
           </div>
-          <Input
-            type="password"
-            placeholder="Token"
-            value={token || (hasToken ? "********" : "")}
-            onFocus={() => {
-              if (!token && hasToken) {
-                setToken("");
-              }
-            }}
-            onChange={(event) => setToken(event.target.value)}
-          />
+          <div className="relative">
+            <Input
+              type={showToken ? "text" : "password"}
+              placeholder="Token"
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowToken((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-200 cursor-pointer"
+              aria-label={showToken ? "Hide token" : "Show token"}
+              title={showToken ? "Hide token" : "Show token"}
+            >
+              {showToken ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="secondary"
               onClick={() => {
-                if (editingId) {
-                  const existing = configs.find((item) => item.id === editingId);
-                  if (existing) {
-                    handleTest(existing);
-                  } else {
-                    push({
-                      title: "Select a saved profile to test.",
-                      variant: "error",
-                    });
-                  }
-                } else {
-                  handleTest();
-                }
+                handleTest();
               }}
               disabled={
                 isBusy ||
-                (!editingId &&
-                  (!name.trim() || !owner.trim() || !repo.trim() || !token.trim()))
+                !owner.trim() ||
+                !repo.trim() ||
+                (!token.trim() && !hasToken)
               }
             >
               Test connection

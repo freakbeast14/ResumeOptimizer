@@ -17,6 +17,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   let apiKey = String(body?.apiKey || "").trim();
+  const model = String(body?.model || "").trim();
   const configId = body?.configId ? Number(body.configId) : null;
 
   if (configId) {
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
       .where(and(eq(openaiConfigs.id, configId), eq(openaiConfigs.userId, userId)))
       .limit(1);
     if (config) {
-      apiKey = decryptSecret(config.apiKey);
+      apiKey = apiKey || decryptSecret(config.apiKey);
     }
   } else if (!apiKey) {
     const [defaultConfig] = await db
@@ -46,7 +47,11 @@ export async function POST(request: Request) {
 
   try {
     const client = new OpenAI({ apiKey });
-    await client.models.list();
+    if (model) {
+      await client.models.retrieve(model);
+    } else {
+      await client.models.list();
+    }
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json(

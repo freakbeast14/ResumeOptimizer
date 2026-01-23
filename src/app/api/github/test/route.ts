@@ -29,8 +29,8 @@ export async function POST(request: Request) {
       )
       .limit(1);
     if (config) {
-      owner = config.owner;
-      repo = config.repo;
+      owner = owner || config.owner;
+      repo = repo || config.repo;
       token = decryptSecret(config.token);
     }
   } else if (!owner || !repo || !token) {
