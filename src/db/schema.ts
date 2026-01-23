@@ -8,8 +8,17 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+export const roles = pgTable("roles", {
+  id: integer("id").primaryKey(),
+  name: text("name").notNull(),
+});
+
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
+  roleId: integer("role_id")
+    .notNull()
+    .default(1)
+    .references(() => roles.id),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),

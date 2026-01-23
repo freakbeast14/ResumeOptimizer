@@ -7,7 +7,14 @@ import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Home, History, MessageCircle, Settings, UserCircle } from "lucide-react";
+import {
+  Home,
+  History,
+  MessageCircle,
+  Settings,
+  Shield,
+  UserCircle,
+} from "lucide-react";
 import { useSession } from "next-auth/react";
 
 type AppShellProps = {
@@ -65,6 +72,15 @@ export function AppShell({ children }: AppShellProps) {
             >
               <Settings className="h-8 w-8" />
             </IconNavButton>
+            {session?.user?.roleId === 2 ? (
+              <IconNavButton
+                href="/admin"
+                label="Admin"
+                active={pathname === "/admin"}
+              >
+                <Shield className="h-8 w-8" />
+              </IconNavButton>
+            ) : null}
             {session?.user?.id ? (
               <IconNavButton
                 href="/account"
