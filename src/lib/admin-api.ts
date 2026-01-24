@@ -37,6 +37,24 @@ type AdminRun = {
   createdAt: string;
 };
 
+type AdminTemplate = {
+  id: number;
+  userId: string;
+  name: string;
+  content: string;
+  isDefault: boolean;
+  updatedAt: string;
+};
+
+type AdminPrompt = {
+  id: number;
+  userId: string;
+  name: string;
+  content: string;
+  isDefault: boolean;
+  updatedAt: string;
+};
+
 async function handleJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const message = await response.text();
@@ -173,9 +191,87 @@ export async function deleteAdminRun(id: number) {
   );
 }
 
+export async function fetchAdminTemplates(userId: string) {
+  return handleJson<{ data: AdminTemplate[] }>(
+    await fetch(`/api/admin/users/${userId}/templates`, { cache: "no-store" })
+  );
+}
+
+export async function createAdminTemplate(
+  userId: string,
+  payload: { name: string; content: string; isDefault?: boolean }
+) {
+  return handleJson<{ data: AdminTemplate }>(
+    await fetch(`/api/admin/users/${userId}/templates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+}
+
+export async function updateAdminTemplate(
+  id: number,
+  payload: { name: string; content: string }
+) {
+  return handleJson<{ data: AdminTemplate }>(
+    await fetch(`/api/admin/templates/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+}
+
+export async function deleteAdminTemplate(id: number) {
+  return handleJson<{ data: AdminTemplate }>(
+    await fetch(`/api/admin/templates/${id}`, { method: "DELETE" })
+  );
+}
+
+export async function fetchAdminPrompts(userId: string) {
+  return handleJson<{ data: AdminPrompt[] }>(
+    await fetch(`/api/admin/users/${userId}/prompts`, { cache: "no-store" })
+  );
+}
+
+export async function createAdminPrompt(
+  userId: string,
+  payload: { name: string; content: string; isDefault?: boolean }
+) {
+  return handleJson<{ data: AdminPrompt }>(
+    await fetch(`/api/admin/users/${userId}/prompts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+}
+
+export async function updateAdminPrompt(
+  id: number,
+  payload: { name: string; content: string }
+) {
+  return handleJson<{ data: AdminPrompt }>(
+    await fetch(`/api/admin/prompts/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+  );
+}
+
+export async function deleteAdminPrompt(id: number) {
+  return handleJson<{ data: AdminPrompt }>(
+    await fetch(`/api/admin/prompts/${id}`, { method: "DELETE" })
+  );
+}
+
 export type {
   AdminUser,
   AdminGithubConfig,
   AdminOpenAiConfig,
   AdminRun,
+  AdminTemplate,
+  AdminPrompt,
 };
