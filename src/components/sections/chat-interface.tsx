@@ -412,7 +412,7 @@ export function ChatInterface() {
           className="flex flex-col gap-3 lg:flex-row lg:items-stretch"
           style={{ height: composerHeight }}
         >
-          <div className="flex h-full flex-1 flex-col gap-2 lg:px-4 !pl-0">
+          <div className="flex h-full flex-1 flex-col gap-2 lg:px-4 !pl-0 lg:w-[85%]">
             <Textarea
               className="min-h-[96px] flex-1 border-[#2a2f55] bg-[#10142f] text-slate-100 placeholder:text-slate-500 focus-visible:ring-indigo-400/60"
               placeholder="Paste job description here..."
@@ -429,7 +429,7 @@ export function ChatInterface() {
               {isBusy ? "Generating..." : helperText}
             </span>
           </div>
-          <div className="flex h-full flex-col gap-3">
+          <div className="flex h-full flex-col gap-3 lg:w-[15%]">
             <div className="flex">
               <Button
                 onClick={() => handleGenerate()}
@@ -444,7 +444,7 @@ export function ChatInterface() {
                 <div className="mb-1">Template</div>
                 <div className="relative">
                   <select
-                    className="h-10 min-w-[170px] appearance-none rounded-xl border border-[#2a2f55] bg-[#111633] px-3 pr-9 text-sm text-slate-100"
+                    className="h-10 w-full truncate min-w-[170px] appearance-none rounded-xl border border-[#2a2f55] bg-[#111633] px-3 pr-9 text-sm text-slate-100"
                     value={templateId ?? ""}
                     onChange={(event) =>
                       setTemplateId(
@@ -468,7 +468,7 @@ export function ChatInterface() {
                 <div className="mb-1">Prompt</div>
                 <div className="relative">
                   <select
-                    className="h-10 min-w-[170px] appearance-none rounded-xl border border-[#2a2f55] bg-[#111633] px-3 pr-9 text-sm text-slate-100"
+                    className="h-10 w-full truncate min-w-[170px] appearance-none rounded-xl border border-[#2a2f55] bg-[#111633] px-3 pr-9 text-sm text-slate-100"
                     value={promptId ?? ""}
                     onChange={(event) =>
                       setPromptId(
