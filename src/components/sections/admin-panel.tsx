@@ -8,6 +8,7 @@ import {
   FileText,
   Github,
   Leaf,
+  Copy,
   ChevronDown,
   PenLine,
   Trash2,
@@ -1521,15 +1522,36 @@ export function AdminPanel() {
                   <h2 className="text-lg font-semibold text-slate-100">
                     Job description
                   </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewerOpen(false)}
-                    aria-label="Close preview"
-                    className="h-9 w-9"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        navigator.clipboard.writeText(viewerText).then(
+                          () =>
+                            push({
+                              title: "Job description copied.",
+                              variant: "success",
+                            }),
+                          () =>
+                            push({ title: "Copy failed.", variant: "error" })
+                        );
+                      }}
+                      aria-label="Copy job description"
+                      className="h-9 w-9"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setViewerOpen(false)}
+                      aria-label="Close preview"
+                      className="h-9 w-9"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="mt-4 max-h-[65vh] overflow-y-auto rounded-xl border border-[#2a2f55] bg-[#0b0f24] p-4 text-sm text-slate-200">
                   <p className="whitespace-pre-wrap">{viewerText}</p>
