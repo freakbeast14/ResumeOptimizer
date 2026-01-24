@@ -1,19 +1,38 @@
 import { NextResponse } from "next/server";
+import { and, eq, sql } from "drizzle-orm";
+import bcrypt from "bcrypt";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import bcrypt from "bcrypt";
-import { eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import { prompts, templates, users } from "@/db/schema";
+import { requireAdmin } from "@/lib/admin";
 import { ensureDefaultRoles } from "@/lib/roles";
 
+export const runtime = "nodejs";
+
+export async function GET() {
+  const guard = await requireAdmin();
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.message }, { status: guard.status });
+  }
+
+  const data = await db.select().from(users).orderBy(users.createdAt);
+  const sanitized = data.map(({ passwordHash, ...rest }) => rest);
+  return NextResponse.json({ data: sanitized });
+}
+
 export async function POST(request: Request) {
+  const guard = await requireAdmin();
+  if (!guard.ok) {
+    return NextResponse.json({ error: guard.message }, { status: guard.status });
+  }
+
   const body = await request.json();
   const name = String(body?.name || "").trim();
   const email = String(body?.email || "").trim().toLowerCase();
   const password = String(body?.password || "");
-  const passwordRule = /^(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}$/;
+  const roleId = Number(body?.roleId || 1);
 
   if (!name || !email || !password) {
     return NextResponse.json(
@@ -21,25 +40,19 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
-  if (!passwordRule.test(password)) {
-    return NextResponse.json(
-      {
-        error:
-          "Password must be at least 8 characters and include 1 number and 1 special character.",
-      },
-      { status: 400 }
-    );
+
+  if (![1, 2].includes(roleId)) {
+    return NextResponse.json({ error: "Invalid role." }, { status: 400 });
   }
 
   const [existing] = await db
-    .select()
+    .select({ id: users.id })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
-
   if (existing) {
     return NextResponse.json(
-      { error: "An account with this email already exists." },
+      { error: "A user with this email already exists." },
       { status: 409 }
     );
   }
@@ -48,12 +61,7 @@ export async function POST(request: Request) {
   await ensureDefaultRoles();
   const [created] = await db
     .insert(users)
-    .values({
-      name,
-      email,
-      passwordHash,
-      roleId: 1,
-    })
+    .values({ name, email, passwordHash, roleId })
     .returning();
 
   if (created?.id) {
@@ -83,7 +91,6 @@ export async function POST(request: Request) {
     });
   }
 
-  return NextResponse.json({
-    data: { id: created.id, name: created.name, email: created.email },
-  });
+  const { passwordHash: _passwordHash, ...rest } = created;
+  return NextResponse.json({ data: rest });
 }

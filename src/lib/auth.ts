@@ -37,7 +37,7 @@ export const authOptions: NextAuthOptions = {
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) return null;
 
-        return { id: user.id, name: user.name, email: user.email };
+        return { id: user.id, name: user.name, email: user.email, roleId: user.roleId };
       },
     }),
   ],
@@ -45,12 +45,16 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user && "id" in user) {
         token.id = user.id;
+        if ("roleId" in user) {
+          token.roleId = user.roleId;
+        }
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token?.id) {
         session.user.id = token.id as string;
+        session.user.roleId = token.roleId as number | undefined;
       }
       return session;
     },
@@ -63,4 +67,9 @@ export const authOptions: NextAuthOptions = {
 export async function getUserId() {
   const session = await getServerSession(authOptions);
   return session?.user?.id || null;
+}
+
+export async function getUserRoleId() {
+  const session = await getServerSession(authOptions);
+  return session?.user?.roleId ?? null;
 }
